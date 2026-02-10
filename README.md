@@ -11,15 +11,13 @@ Zaawansowane narzędzie do automatyzacji procesów uzgadniania transakcji bankow
 
     Manual Matching UI: Dedykowany moduł VBA do ręcznego parowania trudnych przypadków (np. prowizji lub wpłat zbiorczych).
 
-    Bezpieczeństwo Danych: Granularny system ochrony arkuszy oparty na haśle „admin”.
+    Bezpieczeństwo Danych: System ochrony arkuszy oparty na haśle „admin”.
 
     Interaktywny Dashboard: Wizualizacja wyników uzgodnień przy użyciu fragmentatorów i osi czasu.
 
 ### Struktura Repozytorium
 
     /Data: Przykładowe pliki źródłowe CSV.
-
-    /Source: Wyeksportowany kod VBA (.bas) oraz definicje zapytań Power Query.
 
     projekt.xlsm: Główny plik aplikacji.
 
@@ -45,15 +43,13 @@ A professional tool designed to automate the reconciliation process between ERP 
 
     Manual Matching UI: Custom VBA module for manual pairing of complex cases like bank fees or partial payments.
 
-    Data Security: Granular sheet protection system utilizing "admin" password.
+    Data Security: Sheet protection system utilizing "admin" password.
 
     Interactive Dashboard: Visual results overview using Slicers and Timelines for quick analysis.
 
 ### Repository Structure
 
     /Data: Sample CSV source files.
-
-    /Source: Exported VBA source code (.bas) and Power Query definitions.
 
     projekt.xlsm: Main application file.
 
