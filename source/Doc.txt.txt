@@ -1,0 +1,59 @@
+## 1. Dokumentacja VBA (Source/VBA_Logic_Description.txt)
+
+PL: Moduł VBA: Automatyzacja Procesu i Ochrona Arkuszy
+
+Ten moduł stanowi warstwę kontrolną aplikacji, zapewniając integralność danych i automatyzację powtarzalnych czynności.
+
+    ZabezpieczWszystkieArkusze: Implementuje zaawansowany system uprawnień. Wykorzystuje parametr UserInterfaceOnly:=True, co pozwala makrom na modyfikację danych bez zdejmowania ochrony. Rozróżnia typy arkuszy: Dashboard (dostęp do Slicerów), Manual_matching (dostęp do pól edycji B6 i G6) oraz bazy danych (dostęp do filtrów i sortowania przy blokadzie edycji komórek).
+
+    ZatwierdzIPreniesMatch: Formularz wejściowy dla transakcji, których system nie dopasował automatycznie. Makro waliduje dane, przelicza formuły (Application.Calculate), przenosi rekord do statycznego Archiwum i wymusza odświeżenie modelu danych.
+
+    OdbezpieczWszystkieArkusze: Procedura serwisowa pozwalająca na szybkie zdjęcie blokad ze wszystkich zakładek za pomocą hasła "admin".
+
+EN: VBA Module: Workflow Automation & Sheet Protection
+
+This module serves as the control layer of the application, ensuring data integrity and automating repetitive tasks.
+
+    ZabezpieczWszystkieArkusze: Implements a sophisticated permission system. It utilizes the UserInterfaceOnly:=True parameter, allowing macros to modify data without removing protection. It distinguishes between sheet types: Dashboard (Slicer access), Manual_matching (edit access for cells B6 and G6), and data sheets (filter and sort access while blocking cell editing).
+
+    ZatwierdzIPreniesMatch: An input form for transactions not automatically matched by the system. The macro validates data, forces formula calculation (Application.Calculate), moves the record to the static Archive, and triggers a data model refresh.
+
+    OdbezpieczWszystkieArkusze: A service procedure allowing for quick removal of protection from all tabs using the "admin" password.
+
+## 2. Dokumentacja Power Query (Source/PowerQuery_Logic_Description.txt)
+
+PL: Logika Power Query: Wielopoziomowy Proces ETL i Uzgadniania
+
+System wykorzystuje 15 zsynchronizowanych zapytań do procesowania danych z plików CSV.
+
+    Etap 1 (Import i Czyszczenie): Zapytania Ewidencja_Ksiegowa_Full i Wyciag_Bankowy_Full standaryzują dane, czyszczą opisy transakcji (Text.Clean/Trim) i przygotowują unikalne klucze ID.
+
+    Etap 2 (Kaskadowe Dopasowanie): System próbuje połączyć dane w trzech krokach:
+
+        Scalanie1: Dopasowanie rozmyte (Fuzzy Join) po numerach faktur z niską tolerancją błędu.
+
+        Scalanie2: Dopasowanie rozmyte po polach łączonych (Kontrahent + Faktura) dla rekordów pozostałych.
+
+        Scalanie3: Dopasowanie po kwotach dla unikalnych wartości (Unique Amounts).
+
+    Etap 3 (Dynamiczne Filtrowanie): Zapytanie Matched agreguje wszystkie dopasowania automatyczne oraz manualne z tabeli Tbl_Reczne_Archiwum.
+
+    Etap 4 (Widok Roboczy): Zapytania Ewidencja_Unmatched i Wyciąg_Unmatched wykorzystują sprzężenie LeftAnti względem zapytania Matched. Dzięki temu każdy rekord, który został uzgodniony (automatycznie lub ręcznie), jest natychmiast usuwany z widoku roboczego po odświeżeniu.
+
+EN: Power Query Logic: Multi-level ETL & Reconciliation Process
+
+The system utilizes 15 synchronized queries to process data from CSV files.
+
+    Phase 1 (Import & Cleaning): Ewidencja_Ksiegowa_Full and Wyciag_Bankowy_Full queries standardize data, clean transaction descriptions (Text.Clean/Trim), and prepare unique ID keys.
+
+    Phase 2 (Cascade Matching): The system attempts to join data in three stages:
+
+        Scalanie1: Fuzzy Join by invoice numbers with low error tolerance.
+
+        Scalanie2: Fuzzy Join by concatenated fields (Vendor + Invoice) for remaining records.
+
+        Scalanie3: Matching by unique amounts.
+
+    Phase 3 (Dynamic Aggregation): The Matched query aggregates all automatic matches and manual entries from the Tbl_Reczne_Archiwum table.
+
+    Phase 4 (Working View): Ewidencja_Unmatched and Wyciąg_Unmatched queries use a LeftAnti join against the Matched query. Consequently, any record that has been reconciled (either automatically or manually) is immediately removed from the working view upon refresh.

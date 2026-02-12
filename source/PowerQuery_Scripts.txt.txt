@@ -1,0 +1,177 @@
+------------------------------------------------
+NAZWA ZAPYTANIA: Ewidencja_Ksiegowa_Full csv
+------------------------------------------------
+let
+    Źródło = Csv.Document(File.Contents("C:\Users\kmita\Pulpit\NAUKA\EXCEL\Banking_Reconciliation\Ewidencja_Ksiegowa_Full.csv.txt"),[Delimiter=";", Columns=5, Encoding=1250, QuoteStyle=QuoteStyle.None]),
+    #"Nagłówki o podwyższonym poziomie" = Table.PromoteHeaders(Źródło, [PromoteAllScalars=true]),
+    #"Zmieniono typ" = Table.TransformColumnTypes(#"Nagłówki o podwyższonym poziomie",{{"ID_Wewnetrzne", type text}, {"Data_Ksiegowania", type date}, {"Kontrahent", type text}, {"Nr_Faktury", type text}, {"Kwota", type number}}),
+    #"Zamieniono wartość" = Table.ReplaceValue(#"Zmieniono typ","/"," ",Replacer.ReplaceText,{"Nr_Faktury"}),
+    #"Zamieniono wartość1" = Table.ReplaceValue(#"Zamieniono wartość","-"," ",Replacer.ReplaceText,{"Nr_Faktury"}),
+    #"Zamieniono wartość2" = Table.ReplaceValue(#"Zamieniono wartość1","_"," ",Replacer.ReplaceText,{"ID_Wewnetrzne"}),
+    #"Przycięty tekst" = Table.TransformColumns(#"Zamieniono wartość2",{{"Kontrahent", Text.Trim, type text}, {"Nr_Faktury", Text.Trim, type text}}),
+    #"Oczyszczono tekst" = Table.TransformColumns(#"Przycięty tekst",{{"Kontrahent", Text.Clean, type text}, {"Nr_Faktury", Text.Clean, type text}})
+in
+    #"Oczyszczono tekst"
+
+------------------------------------------------
+NAZWA ZAPYTANIA: Wyciag_Bankowy_Full csv
+------------------------------------------------
+let
+    Źródło = Csv.Document(File.Contents("C:\Users\kmita\Pulpit\NAUKA\EXCEL\Banking_Reconciliation\Wyciag_Bankowy_Full.csv.txt"),[Delimiter=";", Columns=3, Encoding=1250, QuoteStyle=QuoteStyle.None]),
+    #"Nagłówki o podwyższonym poziomie" = Table.PromoteHeaders(Źródło, [PromoteAllScalars=true]),
+    #"Zmieniono typ" = Table.TransformColumnTypes(#"Nagłówki o podwyższonym poziomie",{{"Data_Operacji", type date}, {"Opis_Transakcji", type text}, {"Kwota_Operacji", type number}}),
+    #"Zamieniono wartość" = Table.ReplaceValue(#"Zmieniono typ","PRZELEW","",Replacer.ReplaceText,{"Opis_Transakcji"}),
+    #"Zamieniono wartość1" = Table.ReplaceValue(#"Zamieniono wartość","WPLATA","",Replacer.ReplaceText,{"Opis_Transakcji"}),
+    #"Przycięty tekst" = Table.TransformColumns(#"Zamieniono wartość1",{{"Opis_Transakcji", Text.Trim, type text}}),
+    #"Oczyszczono tekst" = Table.TransformColumns(#"Przycięty tekst",{{"Opis_Transakcji", Text.Clean, type text}}),
+    #"Dodano indeks" = Table.AddIndexColumn(#"Oczyszczono tekst", "Indeks", 1, 1, Int64.Type),
+    #"Zmieniono kolejność kolumn" = Table.ReorderColumns(#"Dodano indeks",{"Indeks", "Data_Operacji", "Opis_Transakcji", "Kwota_Operacji"}),
+    #"Dodano kolumnę niestandardową" = Table.AddColumn(#"Zmieniono kolejność kolumn", "Niestandardowe", each "ID_"&Text.From([Indeks])),
+    #"Usunięto kolumny" = Table.RemoveColumns(#"Dodano kolumnę niestandardową",{"Indeks"}),
+    #"Zmieniono kolejność kolumn1" = Table.ReorderColumns(#"Usunięto kolumny",{"Niestandardowe", "Data_Operacji", "Opis_Transakcji", "Kwota_Operacji"}),
+    #"Zmieniono nazwy kolumn" = Table.RenameColumns(#"Zmieniono kolejność kolumn1",{{"Niestandardowe", "ID_Transakcji"}})
+in
+    #"Zmieniono nazwy kolumn"
+
+------------------------------------------------
+NAZWA ZAPYTANIA: Scalanie1
+------------------------------------------------
+let
+    Źródło = Table.FuzzyNestedJoin(#"Ewidencja_Ksiegowa_Full csv", {"Nr_Faktury"}, #"Wyciag_Bankowy_Full csv", {"Opis_Transakcji"}, "Wyciag_Bankowy_Full csv", JoinKind.FullOuter, [IgnoreCase=true, IgnoreSpace=true, Threshold=0.7]),
+    #"Rozwinięty element Wyciag_Bankowy_Full csv" = Table.ExpandTableColumn(Źródło, "Wyciag_Bankowy_Full csv", {"ID_Transakcji", "Data_Operacji", "Opis_Transakcji", "Kwota_Operacji"}, {"Wyciag_Bankowy_Full csv.ID_Transakcji", "Wyciag_Bankowy_Full csv.Data_Operacji", "Wyciag_Bankowy_Full csv.Opis_Transakcji", "Wyciag_Bankowy_Full csv.Kwota_Operacji"}),
+    #"Dodano kolumnę niestandardową" = Table.AddColumn(#"Rozwinięty element Wyciag_Bankowy_Full csv", "Odchylenie_Kwoty_%", each Number.Abs([Kwota] - [Wyciag_Bankowy_Full csv.Kwota_Operacji]) / Number.Abs([Kwota])),
+    #"Przefiltrowano wiersze" = Table.SelectRows(#"Dodano kolumnę niestandardową", each [#"Odchylenie_Kwoty_%"] < 0.01),
+    #"Dodano kolumnę niestandardową1" = Table.AddColumn(#"Przefiltrowano wiersze", "Różnica_dat", each Duration.Days([Wyciag_Bankowy_Full csv.Data_Operacji]-[Data_Ksiegowania])),
+    #"Przefiltrowano wiersze1" = Table.SelectRows(#"Dodano kolumnę niestandardową1", each [Różnica_dat] < 5),
+    #"Zmieniono nazwy kolumn" = Table.RenameColumns(#"Przefiltrowano wiersze1",{{"Wyciag_Bankowy_Full csv.Data_Operacji", "Data_Operacji"}, {"Wyciag_Bankowy_Full csv.Opis_Transakcji", "Opis_Transakcji"}, {"Wyciag_Bankowy_Full csv.Kwota_Operacji", "Kwota_Operacji"}, {"Wyciag_Bankowy_Full csv.ID_Transakcji", "ID_Transakcji"}})
+in
+    #"Zmieniono nazwy kolumn"
+
+------------------------------------------------
+NAZWA ZAPYTANIA: unmatched_ewidencja_1
+------------------------------------------------
+let
+    Źródło = #"Ewidencja_Ksiegowa_Full csv",
+    #"Scalone zapytania" = Table.NestedJoin(Źródło, {"ID_Wewnetrzne"}, Scalanie1, {"ID_Wewnetrzne"}, "Scalanie1", JoinKind.LeftAnti),
+    #"Usunięto kolumny" = Table.RemoveColumns(#"Scalone zapytania",{"Scalanie1"}),
+    #"Dodano kolumnę niestandardową" = Table.AddColumn(#"Usunięto kolumny", "Niestandardowe", each [Kontrahent]&" "&[Nr_Faktury]),
+    #"Zmieniono typ" = Table.TransformColumnTypes(#"Dodano kolumnę niestandardową",{{"Niestandardowe", type text}})
+in
+    #"Zmieniono typ"
+
+------------------------------------------------
+NAZWA ZAPYTANIA: unmatched_wyciag_1
+------------------------------------------------
+let
+    Źródło = #"Wyciag_Bankowy_Full csv",
+    #"Scalone zapytania" = Table.NestedJoin(Źródło, {"Opis_Transakcji"}, Scalanie1, {"Opis_Transakcji"}, "Scalanie1", JoinKind.LeftAnti),
+    #"Usunięto kolumny" = Table.RemoveColumns(#"Scalone zapytania",{"Scalanie1"})
+in
+    #"Usunięto kolumny"
+
+------------------------------------------------
+NAZWA ZAPYTANIA: Scalanie2
+------------------------------------------------
+let
+    Źródło = Table.FuzzyNestedJoin(unmatched_ewidencja_1, {"Niestandardowe"}, unmatched_wyciag_1, {"Opis_Transakcji"}, "unmatched_wyciag_1", JoinKind.FullOuter, [IgnoreCase=true, IgnoreSpace=true, Threshold=0.7]),
+    #"Rozwinięty element unmatched_wyciag_1" = Table.ExpandTableColumn(Źródło, "unmatched_wyciag_1", {"ID_Transakcji", "Data_Operacji", "Opis_Transakcji", "Kwota_Operacji"}, {"unmatched_wyciag_1.ID_Transakcji", "unmatched_wyciag_1.Data_Operacji", "unmatched_wyciag_1.Opis_Transakcji", "unmatched_wyciag_1.Kwota_Operacji"}),
+    #"Dodano kolumnę niestandardową" = Table.AddColumn(#"Rozwinięty element unmatched_wyciag_1", "Odchylenie_Kwoty_%", each Number.Abs([Kwota]-[unmatched_wyciag_1.Kwota_Operacji])/Number.Abs([Kwota])),
+    #"Dodano kolumnę niestandardową1" = Table.AddColumn(#"Dodano kolumnę niestandardową", "Roznica_dat", each Duration.Days([unmatched_wyciag_1.Data_Operacji]-[Data_Ksiegowania])),
+    #"Przefiltrowano wiersze" = Table.SelectRows(#"Dodano kolumnę niestandardową1", each [#"Odchylenie_Kwoty_%"] < 0.1),
+    #"Przefiltrowano wiersze1" = Table.SelectRows(#"Przefiltrowano wiersze", each [Roznica_dat] < 5),
+    #"Zmieniono nazwy kolumn" = Table.RenameColumns(#"Przefiltrowano wiersze1",{{"unmatched_wyciag_1.Data_Operacji", "Data_Operacji"}, {"unmatched_wyciag_1.Opis_Transakcji", "Opis_Transakcji"}, {"unmatched_wyciag_1.Kwota_Operacji", "Kwota_Operacji"}, {"unmatched_wyciag_1.ID_Transakcji", "ID_Transakcji"}})
+in
+    #"Zmieniono nazwy kolumn"
+
+------------------------------------------------
+NAZWA ZAPYTANIA: unmatched_ewidencja_2
+------------------------------------------------
+let
+    Źródło = Table.NestedJoin(unmatched_ewidencja_1, {"ID_Wewnetrzne"}, Scalanie2, {"ID_Wewnetrzne"}, "Scalanie2", JoinKind.LeftAnti),
+    #"Usunięto kolumny" = Table.RemoveColumns(Źródło,{"Scalanie2"})
+in
+    #"Usunięto kolumny"
+
+------------------------------------------------
+NAZWA ZAPYTANIA: unmatched_wyciag_2
+------------------------------------------------
+let
+    Źródło = Table.NestedJoin(unmatched_wyciag_1, {"Opis_Transakcji"}, Scalanie2, {"Opis_Transakcji"}, "Scalanie2", JoinKind.LeftAnti),
+    #"Usunięto kolumny" = Table.RemoveColumns(Źródło,{"Scalanie2"})
+in
+    #"Usunięto kolumny"
+
+------------------------------------------------
+NAZWA ZAPYTANIA: uniq_unmatched_ewidencja_2 (2)
+------------------------------------------------
+let
+    Źródło = unmatched_ewidencja_2,
+    #"Pogrupowano wiersze" = Table.Group(Źródło, {"Kwota"}, {{"Liczność", each Table.RowCount(_), Int64.Type}, {"gr", each _, type table [ID_Wewnetrzne=nullable text, Data_Ksiegowania=nullable date, Kontrahent=text, Nr_Faktury=text, Kwota=nullable number, Niestandardowe=nullable text]}}),
+    #"Rozwinięty element gr" = Table.ExpandTableColumn(#"Pogrupowano wiersze", "gr", {"ID_Wewnetrzne", "Data_Ksiegowania", "Kontrahent", "Nr_Faktury", "Niestandardowe"}, {"ID_Wewnetrzne", "Data_Ksiegowania", "Kontrahent", "Nr_Faktury", "Niestandardowe"}),
+    #"Przefiltrowano wiersze" = Table.SelectRows(#"Rozwinięty element gr", each [Liczność] = 1)
+in
+    #"Przefiltrowano wiersze"
+
+------------------------------------------------
+NAZWA ZAPYTANIA: uniq_unmatched_wyciag_2 (2)
+------------------------------------------------
+let
+    Źródło = unmatched_wyciag_2,
+    #"Pogrupowano wiersze" = Table.Group(Źródło, {"Kwota_Operacji"}, {{"Same_amount_number", each Table.RowCount(_), Int64.Type}, {"gr", each _, type table [Data_Operacji=nullable date, Opis_Transakcji=text, Kwota_Operacji=nullable number]}}),
+    #"Przefiltrowano wiersze1" = Table.SelectRows(#"Pogrupowano wiersze", each [Same_amount_number] = 1),
+    #"Rozwinięty element gr" = Table.ExpandTableColumn(#"Przefiltrowano wiersze1", "gr", {"Data_Operacji", "Opis_Transakcji"}, {"Data_Operacji", "Opis_Transakcji"})
+in
+    #"Rozwinięty element gr"
+
+------------------------------------------------
+NAZWA ZAPYTANIA: Scalanie3
+------------------------------------------------
+let
+    Źródło = Table.NestedJoin(#"uniq_unmatched_ewidencja_2 (2)", {"Kwota"}, unmatched_wyciag_2, {"Kwota_Operacji"}, "unmatched_wyciag_2", JoinKind.FullOuter),
+    #"Rozwinięty element unmatched_wyciag_2" = Table.ExpandTableColumn(Źródło, "unmatched_wyciag_2", {"ID_Transakcji", "Data_Operacji", "Opis_Transakcji", "Kwota_Operacji"}, {"ID_Transakcji", "Data_Operacji", "Opis_Transakcji", "Kwota_Operacji"}),
+    #"Dodano kolumnę niestandardową" = Table.AddColumn(#"Rozwinięty element unmatched_wyciag_2", "Roznica_dni", each Duration.Days([Data_Operacji]-[Data_Ksiegowania])),
+    #"Przefiltrowano wiersze" = Table.SelectRows(#"Dodano kolumnę niestandardową", each [Roznica_dni] < 5)
+in
+    #"Przefiltrowano wiersze"
+
+------------------------------------------------
+NAZWA ZAPYTANIA: Tbl_Reczne_Archiwum
+------------------------------------------------
+let
+    Źródło = Excel.CurrentWorkbook(){[Name="Tbl_Reczne_Archiwum"]}[Content],
+    #"Zmieniono typ" = Table.TransformColumnTypes(Źródło,{{"ID_Wewnetrzne", type any}, {"Data_Ksiegowania", type any}, {"Kontrahent", type any}, {"Nr_Faktury", type any}, {"Kwota", type any}, {"ID_Transakcji", type any}, {"Data_Operacji", type any}, {"Opis_Transakcji", type any}, {"Kwota_Operacji", type any}})
+in
+    #"Zmieniono typ"
+
+------------------------------------------------
+NAZWA ZAPYTANIA: Matched
+------------------------------------------------
+let
+    Źródło = Table.Combine({Scalanie1, Scalanie2, Scalanie3}),
+    #"Usunięto kolumny" = Table.RemoveColumns(Źródło,{"Odchylenie_Kwoty_%", "Różnica_dat", "Niestandardowe", "Roznica_dat", "Liczność", "Roznica_dni"}),
+    #"Dołączone zapytanie" = Table.Combine({#"Usunięto kolumny", Tbl_Reczne_Archiwum}),
+    #"Przefiltrowano wiersze" = Table.SelectRows(#"Dołączone zapytanie", each ([ID_Wewnetrzne] <> null))
+in
+    #"Przefiltrowano wiersze"
+
+------------------------------------------------
+NAZWA ZAPYTANIA: Ewidencja_Unmatched
+------------------------------------------------
+let
+    Źródło = Table.NestedJoin(#"Ewidencja_Ksiegowa_Full csv", {"ID_Wewnetrzne"}, Matched, {"ID_Wewnetrzne"}, "Scalanie3", JoinKind.LeftAnti),
+    #"Usunięto kolumny" = Table.RemoveColumns(Źródło,{"Scalanie3"}),
+    #"Dodano kolumnę warunkową" = Table.AddColumn(#"Usunięto kolumny", "Zakres kwotowy", each if [Kwota] < 100 then "Do 99,99zł" else if [Kwota] < 1000 then "Od 100zł do 999,99zł" else if [Kwota] < 5000 then "Od 1000zł do 4999,99zł" else if [Kwota] > 4999.99 then "Od 5000zł" else null)
+in
+    #"Dodano kolumnę warunkową"
+
+------------------------------------------------
+NAZWA ZAPYTANIA: Wyciąg_Unmatched
+------------------------------------------------
+let
+    Źródło = Table.NestedJoin(#"Wyciag_Bankowy_Full csv", {"Opis_Transakcji"}, Matched, {"Opis_Transakcji"}, "Scalanie3", JoinKind.LeftAnti),
+    #"Usunięto kolumny" = Table.RemoveColumns(Źródło,{"Scalanie3"}),
+    #"Dodano kolumnę warunkową" = Table.AddColumn(#"Usunięto kolumny", "Zakres kwotowy", each if [Kwota_Operacji] < 100 then "Do 99,99zł" else if [Kwota_Operacji] < 1000 then "Od 100zł do 999,99zł" else if [Kwota_Operacji] < 5000 then "Od 1000zł do 4999,99zł" else if [Kwota_Operacji] > 4999.99 then "Od 5000zł" else null)
+in
+    #"Dodano kolumnę warunkową"
+
+
