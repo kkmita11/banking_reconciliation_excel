@@ -21,6 +21,8 @@ Zaawansowane narzędzie do automatyzacji procesów uzgadniania transakcji bankow
 
     projekt.xlsm: Główny plik aplikacji.
 
+    Source: VBA i PowerQuery kod.
+
 ### Instrukcja Uruchomienia
 
     Pobierz plik projekt.xlsm i pliki CSV.
@@ -52,6 +54,8 @@ A professional tool designed to automate the reconciliation process between ERP 
     /Data: Sample CSV source files.
 
     projekt.xlsm: Main application file.
+    
+    Source: VBA and PowerQuery code.
 
 ### Getting Started
 
